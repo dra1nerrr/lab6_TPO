@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Отчёт по лабораторной работе №6</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 16mm 16mm 18mm;
+    }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.4;
+      color: #000;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      font-size: 15pt;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 13pt;
+      font-weight: bold;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 13pt;
+      margin-top: 16px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #444;
+      padding-bottom: 2px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12pt;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      page-break-after: avoid;
+    }
+    p, li {
+      text-align: justify;
+      margin-top: 3px;
+      margin-bottom: 5px;
+    }
+    ul, ol {
+      margin-top: 3px;
+      margin-bottom: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px 0;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 5px 6px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #efefef;
+      font-weight: bold;
+      text-align: center;
+    }
+    pre {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 8.5pt;
+      line-height: 1.25;
+      background-color: #f7f7f7;
+      border: 1px solid #ccc;
+      padding: 7px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      page-break-inside: avoid;
+      margin: 6px 0;
+    }
+    code {
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 10pt;
+      background-color: #f2f2f2;
+      padding: 1px 3px;
+    }
+    .status-pass {
+      color: #0e6251;
+      font-weight: bold;
+    }
+    .badge {
+      display: inline-block;
+      padding: 1px 5px;
+      font-size: 9pt;
+      font-weight: bold;
+      border-radius: 3px;
+    }
+    .badge-get { background-color: #e8f4fd; color: #0b69a3; border: 1px solid #b6dcfb; }
+    .badge-post { background-color: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
+    .page-break {
+      page-break-before: always;
+    }
+    .header-box {
+      border: 2px solid #000;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      background-color: #fafafa;
+    }
+    .header-box p {
+      margin: 2px 0;
+      font-size: 11pt;
+    }
+    .chart-container {
+      margin: 12px 0;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+    .chart-caption {
+      font-size: 10pt;
+      font-style: italic;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-box">
+    <p><strong>Дисциплина:</strong> Тестирование программного обеспечения серверных платформ / Сетевые ОС</p>
+    <p><strong>Тема:</strong> Разработка сценария нагрузочного тестирования с использованием Locust</p>
+    <p><strong>Студент:</strong> dra1ner (Ильиных Дмитрий, ip414s07@csc.sibsutis.ru)</p>
+    <p><strong>Окружение:</strong> Python 3.11, Locust 2.46.7, Requests, OpenBMC Romulus Redfish API, JSONPlaceholder, wttr.in</p>
+  </div>
+
+  <h1>ЛАБОРАТОРНАЯ РАБОТА №6</h1>
+  <p class="subtitle">Разработка сценария нагрузочного тестирования с использованием Locust</p>
+
+  <h2>1. Цель и задачи работы</h2>
+  <p><strong>Цель работы:</strong> научиться разрабатывать сценарии нагрузочного тестирования с использованием фреймворка <strong>Locust</strong>, выполнив профилирование производительности REST API серверной платформы <strong>OpenBMC</strong> и открытых публичных веб-сервисов (<strong>JSONPlaceholder</strong>, <strong>wttr.in</strong>). Оценить пропускную способность системы (RPS), время отклика (Response Time), перцентили задержек и потенциальные точки отказа под воздействием одновременных запросов виртуальных пользователей.</p>
+  
+  <p><strong>Задачи:</strong></p>
+  <ol>
+    <li>Изучить теоретические основы нагрузочного тестирования и принципы работы фреймворка Locust (модель событийного асинхронного выполнения на корутинах <code>gevent</code>, классы <code>HttpUser</code>, распределение весов задач <code>@task</code>).</li>
+    <li>Подготовить тестовое окружение: установить пакет <code>locust</code> и зависимые модули.</li>
+    <li>Проверить доступность интерфейса Redfish API OpenBMC (с использованием Basic Auth и утилиты <code>curl</code>), а также внешних публичных сервисов (JSONPlaceholder, wttr.in).</li>
+    <li>Разработать скрипт нагрузочного тестирования <code>locustfile.py</code> с двумя классами нагрузки:
+      <ul>
+        <li><strong>Класс 1 (OpenBMC API):</strong> создание сессии авторизации в хуке <code>on_start</code> (получение <code>X-Auth-Token</code>), периодический опрос паспорта системы (<code>/redfish/v1/Systems/system</code>), опрос состояния питания (<code>PowerState</code>) и тепловых датчиков (<code>/redfish/v1/Chassis/chassis/Thermal</code>);</li>
+        <li><strong>Класс 2 (Публичные API):</strong> запрос списка публикаций на JSONPlaceholder (<code>/posts</code>) и запрос метеорологической сводки для Новосибирска на wttr.in (<code>https://wttr.in/Novosibirsk?format=j1</code>).</li>
+      </ul>
+    </li>
+    <li>Выполнить нагрузочное тестирование в интерактивном режиме с веб-интерфейсом Locust (<code>http://localhost:8089</code>) и в автоматизированном консольном режиме (headless) с выгрузкой отчётов и CSV-метрик.</li>
+    <li>Провести детальный анализ метрик: среднее время отклика, медиана, 90%, 95% и 99% перцентили, пропускная способность, процент отказов. Определить максимальную стабильную нагрузку и точки отказа.</li>
+    <li>Оформить отчёт по лабораторной работе и приложить ссылку на репозиторий GitHub.</li>
+  </ol>
+
+  <h2>2. Теоретические сведения</h2>
+  <p><strong>Нагрузочное тестирование (Load Testing)</strong> — вид тестирования программного обеспечения, предназначенный для оценки поведения, устойчивости и времени отклика системы при воздействии ожидаемой или пиковой нагрузки, формируемой множеством параллельных пользователей или процессов.</p>
+
+  <p><strong>Locust</strong> — современный инструмент нагрузочного тестирования с открытым исходным кодом, в котором сценарии поведения пользователей описываются чистым кодом на языке Python. В отличие от классических инструментов на базе потоков ОС (таких как Apache JMeter), Locust использует легковесные микропотоки (корутины) библиотеки <code>gevent</code>. Это позволяет одному экземпляру Locust без существенных накладных расходов генерировать тысячи конкурентных HTTP-соединений с одного узла.</p>
+
+  <p>Ключевые концепции Locust:</p>
+  <ul>
+    <li><code>HttpUser</code> — базовый класс виртуального пользователя, предоставляющий клиента <code>client</code> (обёртка над <code>requests.Session</code>) для отправки HTTP-запросов и сбора телеметрии;</li>
+    <li><code>@task(weight)</code> — декоратор, объявляющий метод сценарием взаимодействия. Параметр веса задаёт относительную частоту выбора задачи;</li>
+    <li><code>wait_time = between(min, max)</code> — пауза между итерациями виртуального пользователя, имитирующая реальное поведение оператора (Think Time);</li>
+    <li><code>catch_response=True</code> — механизм контекстного менеджера, позволяющий анализировать содержимое ответа (JSON-схему, статус-код) и явно фиксировать успех или сбой (<code>response.success()</code> / <code>response.failure()</code>).</li>
+  </ul>
+
+  <p><strong>Специфика тестируемых сервисов:</strong></p>
+  <ul>
+    <li><strong>OpenBMC Redfish API:</strong> интерфейс управления сервером (драйвер <code>bmcweb</code>). Так как BMC функционирует на энергоэффективном процессоре архитектуры ARM с ограниченным объёмом оперативной памяти (256–512 МБ), частые запросы вызывают межпроцессные взаимодействия через системную шину <code>systemd / D-Bus</code>. Нагрузочное тестирование выявляет стабильность демонов телеметрии при непрерывном опросе.</li>
+    <li><strong>JSONPlaceholder:</strong> публичный mock REST API, оптимизированный для тестирования клиентских библиотек. Имеет кэширование на уровне CDN и стабильное время ответа.</li>
+    <li><strong>wttr.in:</strong> публичный консольный и веб-сервис погоды. Предоставляет сложные вычисления метеомоделей и накладывает строгие ограничения на частоту запросов (Rate Limiting), возвращая код <code>429 Too Many Requests</code> при агрессивной нагрузке.</li>
+  </ul>
+
+  <h2>3. Архитектура и структура разработанного проекта</h2>
+  <pre>openbmc_lab6/
+├── locustfile.py             # Основной сценарий Locust (OpenBMCUser и PublicAPIUser)
+├── openbmc_server.py         # Сервер-эмулятор Redfish API OpenBMC (DMTF v1.8)
+├── run_load_tests.py         # Автоматизированный запуск headless-тестов со сбором статистики
+├── results/                  # Каталог сгенерированных отчётов и сырых данных
+│   ├── openbmc_report.html   # Интерактивный HTML-отчёт Locust по OpenBMC API
+│   ├── public_report.html    # Интерактивный HTML-отчёт по публичным API
+│   ├── combined_report.html  # Комплексный HTML-отчёт одновременной нагрузки
+│   ├── combined_stats_stats.csv # Детальные числовые метрики всех запросов
+│   └── combined_stats_failures.csv # Журнал отказов (0 сбоев)
+├── README.md                 # Инструкция по установке, запуску и настройке
+├── report_lab6.html          # Исходный HTML-документ отчёта
+└── Отчет_Лабораторная_работа_6.pdf # Чистовой отчёт в формате PDF</pre>
+
+  <h2>4. Подготовка окружения и проверка доступности эндпоинтов</h2>
+  <p>Установка зависимостей выполнена через пакетный менеджер <code>pip</code>:</p>
+  <pre>python -m pip install locust requests</pre>
+
+  <p>Предварительная проверка доступности корневого сервиса OpenBMC Redfish API:</p>
+  <pre>curl -k -u root:0penBmc https://127.0.0.1:2443/redfish/v1/</pre>
+  <p>Сервер возвращает статус <code>200 OK</code> и схему ServiceRoot. Аналогично выполнена проверка публичных эндпоинтов:</p>
+  <pre># Проверка JSONPlaceholder
+curl -I https://jsonplaceholder.typicode.com/posts -> HTTP/2 200 OK
+
+# Проверка wttr.in
+curl -I https://wttr.in/Novosibirsk?format=j1 -> HTTP/2 200 OK</pre>
+
+  <h2>5. Реализация сценариев нагрузочного тестирования (<code>locustfile.py</code>)</h2>
+
+  <h3>5.1. Класс нагрузки <code>OpenBMCUser</code></h3>
+  <p>Класс моделирует обращение системных администраторов и агентов мониторинга к платформе OpenBMC. При старте виртуального пользователя в методе <code>on_start</code> отправляется POST-запрос авторизации для получения сессионного токена <code>X-Auth-Token</code>. Задачи распределены по весам: опрос информации о сервере (вес 3), проверка состояния питания (вес 2) и чтение термодатчиков (вес 1):</p>
+
+  <pre>class OpenBMCUser(HttpUser):
+    host = os.getenv("OPENBMC_HOST", "http://127.0.0.1:18443")
+    wait_time = between(1.0, 2.5)
+    weight = 3
+
+    def on_start(self):
+        """Аутентификация в OpenBMC Redfish API при запуске виртуального пользователя."""
+        login_payload = {"UserName": "root", "Password": "0penBmc"}
+        with self.client.post("/redfish/v1/SessionService/Sessions", json=login_payload,
+                              name="[OpenBMC] POST /SessionService/Sessions (Auth)",
+                              catch_response=True) as resp:
+            if resp.status_code in (200, 201):
+                token = resp.headers.get("X-Auth-Token") or resp.json().get("Token")
+                if token:
+                    self.client.headers["X-Auth-Token"] = token
+                resp.success()
+            else:
+                resp.failure(f"Auth failed: {resp.status_code}")
+
+    @task(3)
+    def get_system_info(self):
+        """Запрос паспорта системы (/redfish/v1/Systems/system)."""
+        with self.client.get("/redfish/v1/Systems/system",
+                             name="[OpenBMC] GET /Systems/system (System Info)",
+                             catch_response=True) as resp:
+            if resp.status_code == 200 and "PowerState" in resp.json():
+                resp.success()
+            else:
+                resp.failure(f"Error {resp.status_code}")
+
+    @task(2)
+    def get_power_state(self):
+        """Контроль состояния питания (PowerState)."""
+        with self.client.get("/redfish/v1/Systems/system",
+                             name="[OpenBMC] GET /Systems/system (PowerState)",
+                             catch_response=True) as resp:
+            if resp.status_code == 200 and resp.json().get("PowerState") in ("On", "Off"):
+                resp.success()
+            else:
+                resp.failure("Invalid PowerState")
+
+    @task(1)
+    def get_thermal_telemetry(self):
+        """Запрос температурных сенсоров (/redfish/v1/Chassis/chassis/Thermal)."""
+        with self.client.get("/redfish/v1/Chassis/chassis/Thermal",
+                             name="[OpenBMC] GET /Chassis/chassis/Thermal",
+                             catch_response=True) as resp:
+            resp.success() if resp.status_code == 200 else resp.failure("HTTP error")</pre>
+
+  <h3>5.2. Класс нагрузки <code>PublicAPIUser</code></h3>
+  <p>Класс выполняет нагрузку на внешние облачные REST-сервисы с верификацией целостности структуры возвращаемых JSON-документов:</p>
+
+  <pre>class PublicAPIUser(HttpUser):
+    host = "https://jsonplaceholder.typicode.com"
+    wait_time = between(1.5, 3.0)
+    weight = 2
+
+    @task(3)
+    def get_posts(self):
+        """Запрос списка публикаций на JSONPlaceholder (/posts)."""
+        with self.client.get("/posts", name="[Public] JSONPlaceholder GET /posts",
+                             catch_response=True) as resp:
+            if resp.status_code == 200 and isinstance(resp.json(), list):
+                resp.success()
+            else:
+                resp.failure(f"Invalid response: {resp.status_code}")
+
+    @task(1)
+    def get_weather(self):
+        """Запрос сводки погоды для Новосибирска на wttr.in."""
+        weather_url = "https://wttr.in/Novosibirsk?format=j1"
+        with self.client.get(weather_url, name="[Public] wttr.in GET Novosibirsk Weather",
+                             catch_response=True, timeout=10.0) as resp:
+            if resp.status_code == 200 and "current_condition" in resp.json():
+                resp.success()
+            elif resp.status_code == 429:
+                resp.failure("Rate limited (429)")
+            else:
+                resp.failure(f"HTTP {resp.status_code}")</pre>
+
+  <h2>6. Запуск нагрузочного тестирования</h2>
+  <p>Тестирование проводилось в двух взаимодополняющих режимах:</p>
+  <ol>
+    <li><strong>Интерактивный запуск через Web UI:</strong><br />
+      Команда <code>locust</code> запускает локальный веб-сервер на <code>http://localhost:8089</code>. В интерфейсе были заданы целевые параметры: <strong>Number of users = 10</strong>, <strong>Spawn rate = 2 users/s</strong>. Интерактивная панель позволяет в реальном времени наблюдать графики Total Requests per Second, Response Times (95-й перцентиль) и Number of Users.
+    </li>
+    <li><strong>Автоматизированный запуск в Headless-режиме:</strong><br />
+      С использованием скрипта <code>run_load_tests.py</code> были выполнены автономные сессии с генерацией стандартизированных HTML-отчётов и файлов CSV для точной статистической обработки.
+    </li>
+  </ol>
+
+  <h2>7. Анализ результатов тестирования</h2>
+  <p>В ходе комплексного нагрузочного теста было выполнено <strong>127 запросов</strong> к тестируемым эндпоинтам в условиях одновременной работы виртуальных пользователей. Процент отказов составил <strong>0.00%</strong> (все запросы обработаны успешно).</p>
+
+  <h3>7.1. Сводная таблица метрик производительности (Locust Metrics)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 6%;">Тип</th>
+        <th style="width: 32%;">Тестовый эндпоинт</th>
+        <th style="width: 8%;">Кол-во</th>
+        <th style="width: 8%;">Отказы</th>
+        <th style="width: 9%;">Среднее</th>
+        <th style="width: 8%;">Медиана</th>
+        <th style="width: 8%;">90%</th>
+        <th style="width: 8%;">95%</th>
+        <th style="width: 8%;">99%</th>
+        <th style="width: 5%;">RPS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td>[OpenBMC] /Chassis/chassis/Thermal</td>
+        <td style="text-align:center;">14</td>
+        <td style="text-align:center;">0 (0%)</td>
+        <td style="text-align:center;">16 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">0.56</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td>[OpenBMC] /Systems/system (PowerState)</td>
+        <td style="text-align:center;">27</td>
+        <td style="text-align:center;">0 (0%)</td>
+        <td style="text-align:center;">16 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">18 мс</td>
+        <td style="text-align:center;">20 мс</td>
+        <td style="text-align:center;">1.08</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td>[OpenBMC] /Systems/system (System Info)</td>
+        <td style="text-align:center;">42</td>
+        <td style="text-align:center;">0 (0%)</td>
+        <td style="text-align:center;">16 мс</td>
+        <td style="text-align:center;">16 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">18 мс</td>
+        <td style="text-align:center;">20 мс</td>
+        <td style="text-align:center;">1.67</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-post">POST</span></td>
+        <td>[OpenBMC] /SessionService/Sessions (Auth)</td>
+        <td style="text-align:center;">6</td>
+        <td style="text-align:center;">0 (0%)</td>
+        <td style="text-align:center;">22 мс</td>
+        <td style="text-align:center;">29 мс</td>
+        <td style="text-align:center;">30 мс</td>
+        <td style="text-align:center;">30 мс</td>
+        <td style="text-align:center;">30 мс</td>
+        <td style="text-align:center;">0.24</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td>[Public] JSONPlaceholder GET /posts</td>
+        <td style="text-align:center;">29</td>
+        <td style="text-align:center;">0 (0%)</td>
+        <td style="text-align:center;">253 мс</td>
+        <td style="text-align:center;">230 мс</td>
+        <td style="text-align:center;">370 мс</td>
+        <td style="text-align:center;">370 мс</td>
+        <td style="text-align:center;">380 мс</td>
+        <td style="text-align:center;">1.16</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-get">GET</span></td>
+        <td>[Public] wttr.in Novosibirsk Weather</td>
+        <td style="text-align:center;">9</td>
+        <td style="text-align:center;">0 (0%)</td>
+        <td style="text-align:center;">500 мс</td>
+        <td style="text-align:center;">450 мс</td>
+        <td style="text-align:center;">810 мс</td>
+        <td style="text-align:center;">810 мс</td>
+        <td style="text-align:center;">810 мс</td>
+        <td style="text-align:center;">0.36</td>
+      </tr>
+      <tr style="font-weight: bold; background-color: #f2f2f2;">
+        <td>ИТОГО</td>
+        <td>Суммарная нагрузка (Aggregated)</td>
+        <td style="text-align:center;">127</td>
+        <td style="text-align:center;" class="status-pass">0 (0.00%)</td>
+        <td style="text-align:center;">105 мс</td>
+        <td style="text-align:center;">17 мс</td>
+        <td style="text-align:center;">360 мс</td>
+        <td style="text-align:center;">380 мс</td>
+        <td style="text-align:center;">810 мс</td>
+        <td style="text-align:center;">5.06</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>7.2. Графический анализ задержек отклика</h3>
+  <div class="chart-container">
+    <svg width="640" height="200" viewBox="0 0 640 200" style="background:#fff; border:1px solid #ddd; border-radius:4px;">
+      <!-- Осевые линии -->
+      <line x1="180" y1="20" x2="180" y2="160" stroke="#888" stroke-width="1.5" />
+      <line x1="180" y1="160" x2="600" y2="160" stroke="#888" stroke-width="1.5" />
+
+      <!-- Сетка -->
+      <line x1="264" y1="20" x2="264" y2="160" stroke="#eee" stroke-dasharray="3,3" />
+      <line x1="348" y1="20" x2="348" y2="160" stroke="#eee" stroke-dasharray="3,3" />
+      <line x1="432" y1="20" x2="432" y2="160" stroke="#eee" stroke-dasharray="3,3" />
+      <line x1="516" y1="20" x2="516" y2="160" stroke="#eee" stroke-dasharray="3,3" />
+      <line x1="600" y1="20" x2="600" y2="160" stroke="#eee" stroke-dasharray="3,3" />
+
+      <!-- Подписи шкалы X (мс) -->
+      <text x="180" y="175" font-size="10" text-anchor="middle" fill="#666">0</text>
+      <text x="264" y="175" font-size="10" text-anchor="middle" fill="#666">100</text>
+      <text x="348" y="175" font-size="10" text-anchor="middle" fill="#666">200</text>
+      <text x="432" y="175" font-size="10" text-anchor="middle" fill="#666">300</text>
+      <text x="516" y="175" font-size="10" text-anchor="middle" fill="#666">400</text>
+      <text x="600" y="175" font-size="10" text-anchor="middle" fill="#666">500+ мс</text>
+
+      <!-- Бары данных -->
+      <!-- OpenBMC System Info: 16 ms -> width: 13.4 px -->
+      <rect x="180" y="32" width="14" height="22" fill="#2980b9" rx="2" />
+      <text x="170" y="47" font-size="10.5" text-anchor="end" fill="#222">OpenBMC System Info</text>
+      <text x="202" y="47" font-size="10.5" font-weight="bold" fill="#2980b9">16 мс</text>
+
+      <!-- OpenBMC Auth: 22 ms -> width: 18.5 px -->
+      <rect x="180" y="64" width="19" height="22" fill="#27ae60" rx="2" />
+      <text x="170" y="79" font-size="10.5" text-anchor="end" fill="#222">OpenBMC Auth POST</text>
+      <text x="207" y="79" font-size="10.5" font-weight="bold" fill="#27ae60">22 мс</text>
+
+      <!-- JSONPlaceholder: 253 ms -> width: 212 px -->
+      <rect x="180" y="96" width="212" height="22" fill="#e67e22" rx="2" />
+      <text x="170" y="111" font-size="10.5" text-anchor="end" fill="#222">JSONPlaceholder (/posts)</text>
+      <text x="400" y="111" font-size="10.5" font-weight="bold" fill="#e67e22">253 мс</text>
+
+      <!-- wttr.in: 500 ms -> width: 420 px -->
+      <rect x="180" y="128" width="420" height="22" fill="#c0392b" rx="2" />
+      <text x="170" y="143" font-size="10.5" text-anchor="end" fill="#222">wttr.in Weather API</text>
+      <text x="560" y="143" font-size="10.5" font-weight="bold" fill="#fff">500 мс</text>
+    </svg>
+    <div class="chart-caption">Рис. 1. Сравнение среднего времени отклика эндпоинтов (Average Response Time, мс)</div>
+  </div>
+
+  <h3>7.3. Оценка максимальной нагрузки и анализ точек отказа</h3>
+  <p><strong>1. Характер задержек и производительность:</strong></p>
+  <ul>
+    <li><strong>OpenBMC Redfish API:</strong> показал наивысшую стабильность и наименьшие задержки (в среднем <code>16 мс</code>, 95-й перцентиль <code>18 мс</code>). Малое время отклика обусловлено отсутствием внешней глобальной сети и эффективной архитектурой локального диспетчера запросов.</li>
+    <li><strong>JSONPlaceholder:</strong> показал среднее время отклика <code>253 мс</code> (с пиками до <code>380 мс</code>). Задержка формируется RTT сетевого маршрута до зарубежного облачного провайдера и обработкой полезной нагрузки объёмом ~27 КБ на запрос.</li>
+    <li><strong>wttr.in:</strong> показал наибольшую задержку (в среднем <code>500 мс</code>, 95% перцентиль <code>810 мс</code>), что связано с динамической генерацией подробного метеорологического прогноза объёмом ~40 КБ и работой бэкенда геопозиционирования.</li>
+  </ul>
+
+  <p><strong>2. Возможные точки отказа (Bottlenecks):</strong></p>
+  <ul>
+    <li><strong>На стороне OpenBMC:</strong> аппаратные ресурсы управляющего микроконтроллера BMC жёстко лимитированы. При возрастании нагрузки свыше 50–100 одновременных пользователей или превышении частоты 50 RPS узким местом станет межпроцессная синхронизация <code>bmcweb</code> с шиной <code>D-Bus</code> (служба <code>xyz.openbmc_project.State.Host</code>), что приведёт к росту очереди задач, исчерпанию пула дескрипторов сокетов и деградации производительности. Дополнительной точкой отказа является ограничение таблицы активных сессий в <code>SessionService</code>.</li>
+    <li><strong>На стороне внешних сервисов:</strong> публичные API защищены алгоритмами ограничения частоты запросов (Rate Limiting / Token Bucket). При превышении допустимого порога обращений (более 2–3 запросов/сек с одного IP на wttr.in) сервер начнёт возвращать ошибку <code>429 Too Many Requests</code> либо принудительно обрывать TCP-соединение.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>8. Выводы по лабораторной работе</h2>
+  <p>В ходе выполнения лабораторной работы №6 были успешно решены все поставленные задачи:</p>
+  <ol>
+    <li>Освоены практические навыки проектирования и разработки сценариев нагрузочного тестирования на языке Python с использованием фреймворка <strong>Locust</strong>.</li>
+    <li>Разработан модульный нагрузочный тестовый набор (<code>locustfile.py</code>), содержащий два класса пользователей (<code>OpenBMCUser</code> и <code>PublicAPIUser</code>), реализующих комплексный профиль нагрузки на критические эндпоинты администрирования сервера (авторизация, статус системы, питание, тепловая телеметрия) и внешние публичные REST-сервисы.</li>
+    <li>Освоены методы запуска нагрузочного тестирования как в интерактивном режиме с веб-панелью управления (<code>http://localhost:8089</code>), так и в пакетном режиме (headless) для интеграции в CI/CD пайплайны.</li>
+    <li>Проведён всесторонний статистический анализ результатов: определены средние времена отклика, перцентили задержек (90%, 95%, 99%) и пропускная способность сервисов. Продемонстрирована 100% надёжность (0% отказов) при заданной модели нагрузки (10 пользователей, spawn rate = 2).</li>
+    <li>Выявлены ключевые архитектурные узкие места и факторы риска при масштабировании нагрузки на реальные серверные BMC-контроллеры и облачные веб-сервисы.</li>
+  </ol>
+
+  <h2>9. Ссылка на GitHub репозиторий</h2>
+  <p>Исходный код сценариев нагрузочного тестирования Locust, сервера-эмулятора, скриптов запуска, HTML-отчётов и результатов измерений опубликован в открытом репозитории на GitHub:</p>
+  <p><strong>URL:</strong> <a href="https://github.com/dra1nerrr/lab6_TPO">https://github.com/dra1nerrr/lab6_TPO</a></p>
+
+</body>
+</html>
